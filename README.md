@@ -1,4 +1,4 @@
-# Система мониторинга сессий АРМ Linux и сбора системной информации
+# Система мониторинга сессий АРМ Linux и сбора системной информации для российских ОС на базе RPM (аналог RHEL/CentOS)
 
 ## Описание системы
 
@@ -7,17 +7,16 @@
 2. `system-info-collector.sh` - собирает и отправляет детальную информацию о системе
 
 ## Полная инструкция по установке и настройке
-### Установка зависимостей
+### Установка зависимостей - :
 
-Для RHEL/CentOS:
-
+Для Ред ОС:
 ```bash
-yum install -y jq curl dmidecode wget
+sudo yum install -y jq curl dmidecode wget
 ``` 
-Для Debian/Ubuntu:
+Для Альт Linux:
 
 ```bash
-apt-get install -y jq curl dmidecode wget
+sudo apt-get install -y jq curl dmidecode wget
 ``` 
 
 ### Настройка скриптов
