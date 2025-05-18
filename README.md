@@ -10,35 +10,50 @@
 ### Установка зависимостей
 
 Для RHEL/CentOS:
-yum install -y jq curl dmidecode wget
 
+```bash
+yum install -y jq curl dmidecode wget
+``` 
 Для Debian/Ubuntu:
+
+```bash
 apt-get install -y jq curl dmidecode wget
+``` 
 
 ### Настройка скриптов
 Перед запуском отредактируйте параметры в system-info-collector.sh:
 
+```bash
 SERVER="https://your-api.example.com/collect"  # Обязательно HTTPS!
 API_TOKEN="your_very_long_and_secure_token"
 DOMAIN="yourcompany"  # Домен
 MAX_RETRIES=5         # Количество попыток отправки
 RETRY_DELAY=10        # Задержка между попытками (сек)
+```
 
 Опубликуйте system-info-collector.sh на веб-сервере (COLLECTOR_URL)
 
 ### Установка службы
+```bash
 chmod 700 install-session-monitor.sh system-info-collector.sh
 ./install-session-monitor.sh
+```
 
 ### Проверка работы
 Проверка статуса:
+```bash
 systemctl status session-monitor
+```
 
 Просмотр логов:
+```bash
 journalctl -u session-monitor -f --lines=50
+```
 
 Проверка отправки данных:
+```bash
 grep "Отправка данных" /var/log/session-monitor.log
+```
 
 ## Рекомендации по API серверу
 
@@ -50,6 +65,7 @@ grep "Отправка данных" /var/log/session-monitor.log
 
 Валидация:
 Пример проверки на Python:
+```bash
 def validate_data(data):
     required_fields = ['hostname', 'mac_address', 'json_big_info']
     if not all(field in data for field in required_fields):
@@ -57,19 +73,23 @@ def validate_data(data):
     
     if not re.match(r"^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$", data['mac_address']):
         raise ValueError("Invalid MAC address")
+```
 
 ### Хранение:
 Раздельное хранение метаданных и полного дампа
 Индексация по ключевым полям:
 
+```bash
 CREATE TABLE hosts (
     hostname VARCHAR(255) PRIMARY KEY,
     mac_address VARCHAR(17) UNIQUE,
     last_seen TIMESTAMP,
     os_info TEXT
 );
+```
 
 ### Оптимальная архитектура API
+```bash
 POST /api/v1/collect
 Headers:
   Authorization: Bearer <token>
@@ -90,6 +110,7 @@ Response:
   400 Bad Request - ошибка валидации
   429 Too Many Requests - лимит запросов
 Полное руководство по безопасности
+```
 
 ## Защита данных
 Всегда использовать HTTPS
@@ -99,16 +120,20 @@ Response:
 ## Контроль доступа
 
 Права на файлы:
+```bash
 chown root:root /usr/local/bin/session-monitor.sh
 chmod 750 /usr/local/bin/session-monitor.sh
+```
 
 Права на логи:
+```bash
 chmod 640 /var/log/session-monitor.log
+```
 
 ## Мониторинг
 Пример alert-правил для Prometheus:
 
-yaml
+```bash
 - alert: SessionMonitorDown
   expr: up{job="session-monitor"} == 0
   for: 5m
@@ -123,6 +148,7 @@ yaml
     severity: warning
   annotations:
     description: "Failed to send data 5+ times in last hour"
+```
 
 ## Расширенная диагностика
 Логирование ошибок
@@ -132,13 +158,14 @@ yaml
 
 ## Очистка системы
 Для полного удаления:
-
+```bash
 systemctl stop session-monitor
 systemctl disable session-monitor
 rm -f /usr/local/bin/session-monitor.sh \
        /etc/systemd/system/session-monitor.service \
        /var/log/session-monitor.log
 systemctl daemon-reload
+```
 
 ## Полный перечень отправляемых данных (json)
 
