@@ -2,12 +2,147 @@
 
 ## Описание системы
 
-Система состоит из двух компонентов:
+### Система состоит из двух компонентов:
 1. `install-session-monitor.sh` - устанавливает службу мониторинга сессий
 2. `system-info-collector.sh` - собирает и отправляет детальную информацию о системе
 
+## Полная инструкция по установке и настройке
+### Установка зависимостей
+
+Для RHEL/CentOS:
+yum install -y jq curl dmidecode wget
+
+Для Debian/Ubuntu:
+apt-get install -y jq curl dmidecode wget
+
+### Настройка скриптов
+Перед запуском отредактируйте параметры в system-info-collector.sh:
+
+SERVER="https://your-api.example.com/collect"  # Обязательно HTTPS!
+API_TOKEN="your_very_long_and_secure_token"
+DOMAIN="yourcompany"  # Домен
+MAX_RETRIES=5         # Количество попыток отправки
+RETRY_DELAY=10        # Задержка между попытками (сек)
+
+Опубликуйте system-info-collector.sh на веб-сервере (COLLECTOR_URL)
+
+### Установка службы
+chmod 700 install-session-monitor.sh system-info-collector.sh
+./install-session-monitor.sh
+
+### Проверка работы
+Проверка статуса:
+systemctl status session-monitor
+
+Просмотр логов:
+journalctl -u session-monitor -f --lines=50
+
+Проверка отправки данных:
+grep "Отправка данных" /var/log/session-monitor.log
+
+## Рекомендации по API серверу
+
+### Требования к обработке данных
+
+Аутентификация:
+Обязательная проверка Bearer token
+Реализация IP-фильтрации
+
+Валидация:
+Пример проверки на Python:
+def validate_data(data):
+    required_fields = ['hostname', 'mac_address', 'json_big_info']
+    if not all(field in data for field in required_fields):
+        raise ValueError("Missing required fields")
+    
+    if not re.match(r"^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$", data['mac_address']):
+        raise ValueError("Invalid MAC address")
+
+### Хранение:
+Раздельное хранение метаданных и полного дампа
+Индексация по ключевым полям:
+
+CREATE TABLE hosts (
+    hostname VARCHAR(255) PRIMARY KEY,
+    mac_address VARCHAR(17) UNIQUE,
+    last_seen TIMESTAMP,
+    os_info TEXT
+);
+
+### Оптимальная архитектура API
+POST /api/v1/collect
+Headers:
+  Authorization: Bearer <token>
+  Content-Type: application/json
+  X-Client-Version: 1.1
+
+Body:
+  {
+    "hostname": "string",
+    "mac_address": "string",
+    "ip_address": "string",
+    "json_big_info": { ... }
+  }
+
+Response:
+  200 OK - данные приняты
+  401 Unauthorized - неверный токен
+  400 Bad Request - ошибка валидации
+  429 Too Many Requests - лимит запросов
+Полное руководство по безопасности
+
+## Защита данных
+Всегда использовать HTTPS
+Регулярно менять API токены
+Шифровать чувствительные данные (MAC, серийные номера)
+
+## Контроль доступа
+
+Права на файлы:
+chown root:root /usr/local/bin/session-monitor.sh
+chmod 750 /usr/local/bin/session-monitor.sh
+
+Права на логи:
+chmod 640 /var/log/session-monitor.log
+
+## Мониторинг
+Пример alert-правил для Prometheus:
+
+yaml
+- alert: SessionMonitorDown
+  expr: up{job="session-monitor"} == 0
+  for: 5m
+  labels:
+    severity: critical
+  annotations:
+    summary: "Session monitor down on {{ $labels.instance }}"
+
+- alert: DataSendFailed
+  expr: increase(session_monitor_send_errors_total[1h]) > 5
+  labels:
+    severity: warning
+  annotations:
+    description: "Failed to send data 5+ times in last hour"
+
+## Расширенная диагностика
+Логирование ошибок
+Скрипт записывает все ошибки в:
+Системный журнал (journalctl)
+Файл /var/log/session-monitor.log
+
+## Очистка системы
+Для полного удаления:
+
+systemctl stop session-monitor
+systemctl disable session-monitor
+rm -f /usr/local/bin/session-monitor.sh \
+       /etc/systemd/system/session-monitor.service \
+       /var/log/session-monitor.log
+systemctl daemon-reload
+
 ## Полный перечень отправляемых данных (json)
 
+```json
 {
   "collector_version": "1.1",
   "system": {
@@ -166,142 +301,3 @@
     "rpm_packages": ["string"]
   }
 }
-
-Полная инструкция по установке и настройке
-1. Установка зависимостей
-
-# Для RHEL/CentOS:
-yum install -y jq curl dmidecode wget
-
-# Для Debian/Ubuntu:
-apt-get install -y jq curl dmidecode wget
-
-2. Настройка скриптов
-Перед запуском отредактируйте параметры в system-info-collector.sh:
-
-SERVER="https://your-api.example.com/collect"  # Обязательно HTTPS!
-API_TOKEN="your_very_long_and_secure_token"
-DOMAIN="yourcompany"  # Домен
-MAX_RETRIES=5         # Количество попыток отправки
-RETRY_DELAY=10        # Задержка между попытками (сек)
-
-Опубликуйте system-info-collector.sh на веб-сервере (COLLECTOR_URL)
-
-3. Установка службы
-chmod 700 install-session-monitor.sh system-info-collector.sh
-./install-session-monitor.sh
-
-4. Проверка работы
-# Проверка статуса:
-systemctl status session-monitor
-
-# Просмотр логов:
-journalctl -u session-monitor -f --lines=50
-
-# Проверка отправки данных:
-grep "Отправка данных" /var/log/session-monitor.log
-
-5. Рекомендации по API серверу
-
-Требования к обработке данных
-
-Аутентификация:
-Обязательная проверка Bearer token
-Реализация IP-фильтрации
-
-Валидация:
-
-# Пример проверки на Python:
-def validate_data(data):
-    required_fields = ['hostname', 'mac_address', 'json_big_info']
-    if not all(field in data for field in required_fields):
-        raise ValueError("Missing required fields")
-    
-    if not re.match(r"^([0-9A-Fa-f]{2}[:-]){5}([0-9A-Fa-f]{2})$", data['mac_address']):
-        raise ValueError("Invalid MAC address")
-
-Хранение:
-Раздельное хранение метаданных и полного дампа
-
-Индексация по ключевым полям:
-
-CREATE TABLE hosts (
-    hostname VARCHAR(255) PRIMARY KEY,
-    mac_address VARCHAR(17) UNIQUE,
-    last_seen TIMESTAMP,
-    os_info TEXT
-);
-
-Оптимальная архитектура API
-POST /api/v1/collect
-Headers:
-  Authorization: Bearer <token>
-  Content-Type: application/json
-  X-Client-Version: 1.1
-
-Body:
-  {
-    "hostname": "string",
-    "mac_address": "string",
-    "ip_address": "string",
-    "json_big_info": { ... }
-  }
-
-Response:
-  200 OK - данные приняты
-  401 Unauthorized - неверный токен
-  400 Bad Request - ошибка валидации
-  429 Too Many Requests - лимит запросов
-Полное руководство по безопасности
-
-6. Защита данных
-Всегда использовать HTTPS
-Регулярно менять API токены
-Шифровать чувствительные данные (MAC, серийные номера)
-
-7. Контроль доступа
-
-# Права на файлы:
-chown root:root /usr/local/bin/session-monitor.sh
-chmod 750 /usr/local/bin/session-monitor.sh
-
-# Права на логи:
-chmod 640 /var/log/session-monitor.log
-
-8. Мониторинг
-Пример alert-правил для Prometheus:
-
-yaml
-- alert: SessionMonitorDown
-  expr: up{job="session-monitor"} == 0
-  for: 5m
-  labels:
-    severity: critical
-  annotations:
-    summary: "Session monitor down on {{ $labels.instance }}"
-
-- alert: DataSendFailed
-  expr: increase(session_monitor_send_errors_total[1h]) > 5
-  labels:
-    severity: warning
-  annotations:
-    description: "Failed to send data 5+ times in last hour"
-
-Расширенная диагностика
-Логирование ошибок
-Скрипт записывает все ошибки в:
-
-Системный журнал (journalctl)
-
-Файл /var/log/session-monitor.log
-
-Очистка системы
-Для полного удаления:
-
-bash
-systemctl stop session-monitor
-systemctl disable session-monitor
-rm -f /usr/local/bin/session-monitor.sh \
-       /etc/systemd/system/session-monitor.service \
-       /var/log/session-monitor.log
-systemctl daemon-reload
