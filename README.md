@@ -177,7 +177,7 @@ systemctl daemon-reload
     "os": "string",
     "kernel": "string",
     "uptime": "string",
-    "users": number,
+    "users": "number",
     "serial_number": "string",
     "bios_vendor": "string",
     "bios_version": "string",
@@ -199,12 +199,12 @@ systemctl daemon-reload
   "hardware": {
     "cpu": {
       "model": "string",
-      "cores": number,
+      "cores": "number",
       "frequency_ghz": "string"
     },
     "memory": {
-      "total_gb": number,
-      "used_gb": number
+      "total_gb": "number",
+      "used_gb": "number",
     },
     "storage": {
       "blockdevices": [
@@ -252,7 +252,7 @@ systemctl daemon-reload
     "temperatures": [
       {
         "sensor": "string",
-        "temperature": number,
+        "temperature": "number",
         "unit": "C"
       }
     ]
@@ -270,17 +270,17 @@ systemctl daemon-reload
         {
           "ifname": "string",
           "address": "string",
-          "mtu": number
+          "mtu": "number",
         }
       ],
       "ip_info": [
         {
-          "ifindex": number,
+          "ifindex": "number",
           "ifname": "string",
           "addr_info": [
             {
               "local": "string",
-              "prefixlen": number
+              "prefixlen": "number",
             }
           ]
         }
@@ -299,7 +299,7 @@ systemctl daemon-reload
             "permissions": "string",
             "owner": "string",
             "group": "string",
-            "size": number,
+            "size": "number",
             "modified": "string",
             "children": {
               "subdir": {
@@ -308,7 +308,7 @@ systemctl daemon-reload
                 "permissions": "string",
                 "owner": "string",
                 "group": "string",
-                "size": number,
+                "size": "number",
                 "modified": "string"
               }
             }
@@ -328,3 +328,4 @@ systemctl daemon-reload
     "rpm_packages": ["string"]
   }
 }
+```
